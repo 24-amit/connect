@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "es2018",
+    "lib": ["dom", "es2018"],
+    "jsx": "react-jsx",
+    "types": ["react", "react-dom", "react-router-dom"],
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "ignoreDeprecations": "6.0"
+  },
+  "include": ["src"]
+}

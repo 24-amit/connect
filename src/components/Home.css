@@ -1,0 +1,89 @@
+.dialpad-container {
+    max-width: 300px;
+    margin: 40px auto;
+    text-align: center;
+}
+
+.number-display {
+    font-size: 20px;
+    padding: 12px;
+    margin-bottom: 15px;
+    background-color: #f1f5f9;
+    border-radius: 8px;
+    color: #111;
+    font-weight: 600;
+}
+
+.keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.key {
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border: 2px solid #d1d5db;
+    border-radius: 50%;
+    font-size: 18px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.1s ease-in-out;
+}
+
+.key .letters {
+    font-size: 10px;
+    color: #6b7280;
+}
+
+.key.bounce {
+    animation: bounce 0.15s ease;
+}
+
+@keyframes bounce {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.2);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.bottom-row {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 10px;
+}
+
+.key.action {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+    border-radius: 50%;
+}
+
+.key.call {
+    background: #22c55e;
+    color: white;
+    box-shadow: 0 0 8px #22c55e;
+}
+
+.key.clear {
+    background: #ef4444;
+    color: white;
+}
+
+.key.back {
+    background: #facc15;
+    color: black;
+}
