@@ -9,6 +9,7 @@ import Home from "./components/Home";
 import Login from "./components/Login";
 import Otp from "./components/Otp";
 import { auth } from "./config/firebase.config";
+import CallScreen from "./components/CallScreen";
 
 function App() {
   const [isLoading, setIsLoading] = useState(false);
@@ -52,7 +53,7 @@ function App() {
 
         const userId = auth.currentUser?.phoneNumber;
         console.log("Logged in user:", userId);
-        
+
         setIsLoggedIn(true);
       })
       .catch((err) => {

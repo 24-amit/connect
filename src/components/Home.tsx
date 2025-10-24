@@ -4,6 +4,8 @@ import { db } from "../config/firebase.config";
 import { ref, set, onValue, onDisconnect, push, remove, get } from "firebase/database";
 import { auth } from "../config/firebase.config";
 import Peer from "simple-peer";
+import { useNavigate } from "react-router-dom";
+import CallScreen from "./CallScreen";
 
 const keys = [
     { num: "1", letters: "" }, { num: "2", letters: "ABC" }, { num: "3", letters: "DEF" },
@@ -18,6 +20,7 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
     const [remoteUserOnline, setRemoteUserOnline] = useState(false);
     const [calling, setCalling] = useState(false);
     const [callAccepted, setCallAccepted] = useState(false);
+    const navigate = useNavigate();
 
     // keep Peer/RTCPeerConnection and audio element in refs
     const peerRef = useRef<any>(null); // simple-peer instance
@@ -207,6 +210,8 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
         });
 
         peer.on("error", (err) => console.error("Peer error:", err));
+
+        navigate("/call", { state: { number, remoteUserOnline } });
     };
 
     const endCall = () => {

@@ -1,5 +1,6 @@
 {
   "name": "connect",
+  "homepage": "https://24-amit.github.io/connect",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -20,7 +21,7 @@
     "react-native": "^0.80.2",
     "react-native-phone-call": "^1.2.0",
     "react-native-vector-icons": "^10.3.0",
-    "react-router-dom": "^7.7.1",
+    "react-router-dom": "^7.9.4",
     "react-scripts": "5.0.1",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^3.4.4",
@@ -28,6 +29,8 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
@@ -56,6 +59,7 @@
     "@types/react-dom": "^19.1.7",
     "@types/react-router-dom": "^5.3.3",
     "autoprefixer": "^10.4.21",
+    "gh-pages": "^6.3.0",
     "postcss": "^8.5.6",
     "vite": "^7.0.6"
   }
