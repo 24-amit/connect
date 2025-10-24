@@ -4,6 +4,7 @@ import { db } from "../config/firebase.config";
 import { ref, set, onValue, onDisconnect, remove, get } from "firebase/database";
 import { auth } from "../config/firebase.config";
 import Peer from "simple-peer";
+import { useNavigate } from "react-router-dom";
 
 const keys = [
     { num: "1", letters: "" }, { num: "2", letters: "ABC" }, { num: "3", letters: "DEF" },
@@ -25,6 +26,8 @@ const Home: React.FC<HomeProps> = ({ mobileNumber, logout, startCall }) => {
     const peerRef = useRef<any>(null);
     const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+
+    const navigate = useNavigate();
 
     // Mark online presence for current user
     useEffect(() => {
@@ -93,6 +96,7 @@ const Home: React.FC<HomeProps> = ({ mobileNumber, logout, startCall }) => {
 
                     // Optional: you may call startCall here to show a CallScreen UI
                     // startCall(callData.from.replace('+91',''), true);
+                    startCall(dialNumber, true);
                 }
             }
         });
@@ -171,6 +175,8 @@ const Home: React.FC<HomeProps> = ({ mobileNumber, logout, startCall }) => {
         });
 
         peer.on("error", (err) => console.error("Peer error (caller):", err));
+
+        navigate("/call", { state: { number: dialNumber } });
     };
 
     const clearOne = () => setDialNumber((prev) => prev.slice(0, -1));
