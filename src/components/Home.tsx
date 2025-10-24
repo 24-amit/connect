@@ -24,8 +24,8 @@ const Home = ({
     const [number, setNumber] = useState("");
     const [history, setHistory] = useState<string[]>([]);
     const [remoteUserOnline, setRemoteUserOnline] = useState(false);
-    const [calling, setCalling] = useState(false);
-    const [callAccepted, setCallAccepted] = useState(false);
+    // const [calling, setCalling] = useState(false);
+    // const [callAccepted, setCallAccepted] = useState(false);
 
     // WebRTC refs
     const peerRef = useRef<any>(null);
@@ -95,7 +95,7 @@ const Home = ({
                             audioEl.autoplay = true;
                             document.body.appendChild(audioEl);
                         }
-                        setCallAccepted(true);
+                        // setCallAccepted(true);
                     });
                     peer.on("error", (err: any) => console.error("Peer error (callee):", err));
                 }
@@ -133,10 +133,11 @@ const Home = ({
             alert("User is offline — cannot call.");
             return;
         }
-        // Optionally prepare connection (audio permissions etc) here
-        console.log("Calling number:", number, "Online status:", remoteUserOnline);
-        startCall(number, remoteUserOnline); // Pass number and online status to App
+        // Optionally prepare connection (audio permissions etc) here, but NO UI here!
+        startCall(number, true); // Pass number and online status up to App
+        setNumber(""); // Optional, prepares dialpad for next call
     };
+
 
     const backspace = () => setNumber((prev) => prev.slice(0, -1));
 
@@ -188,11 +189,11 @@ const Home = ({
                             ⌫ Back
                         </motion.button>
                     </div>
-                    {calling && (
+                    {/* {calling && (
                         <div className="text-center mt-3 text-blue-800 font-semibold">
                             {callAccepted ? "🔊 Call Connected" : "📞 Calling..."}
                         </div>
-                    )}
+                    )} */}
                 </div>
             </div>
             <audio ref={remoteAudioRef} autoPlay />
