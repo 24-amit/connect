@@ -78,6 +78,7 @@ function App() {
 
   // Handler for starting a call, called from Home
   const handleStartCall = (number, online) => {
+    console.log("handleStartCall triggered with:", number, online);
     setCallNumber(number);
     setCalleeOnline(online);
     setIsCalling(true);
@@ -89,6 +90,8 @@ function App() {
     setCallNumber("");
     setCalleeOnline(false);
   };
+
+  console.log("Rendering: isCalling =", isCalling);
 
   if (isCalling) {
     return (

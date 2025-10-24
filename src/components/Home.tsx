@@ -134,7 +134,8 @@ const Home = ({
             return;
         }
         // Optionally prepare connection (audio permissions etc) here
-        startCall(number, true); // Pass number and online status to App
+        console.log("Calling number:", number, "Online status:", remoteUserOnline);
+        startCall(number, remoteUserOnline); // Pass number and online status to App
     };
 
     const backspace = () => setNumber((prev) => prev.slice(0, -1));
