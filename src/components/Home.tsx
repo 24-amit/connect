@@ -4,6 +4,7 @@ import { db } from "../config/firebase.config";
 import { ref, set, onValue, onDisconnect, remove, get } from "firebase/database";
 import { auth } from "../config/firebase.config";
 import Peer from "simple-peer";
+import { useNavigate } from "react-router-dom";
 
 const keys = [
     { num: "1", letters: "" }, { num: "2", letters: "ABC" }, { num: "3", letters: "DEF" },
@@ -34,6 +35,7 @@ const Home = ({
 
     const callTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+    const navigate = useNavigate();
 
 
     useEffect(() => {
@@ -104,6 +106,9 @@ const Home = ({
                 clearInterval(timerInterval.current);
             }, 4000);
         }
+
+        // Then navigate to call screen
+        navigate("/call", { state: { number } });
     };
 
     const handleEndCall = () => {

@@ -1,22 +1,27 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ConfirmationResult,
   RecaptchaVerifier,
   signInWithPhoneNumber,
 } from "firebase/auth";
 
+import { Routes, Route, useNavigate } from "react-router-dom";
+
 import Home from "./components/Home";
 import Login from "./components/Login";
 import Otp from "./components/Otp";
+import CallScreen from "./components/CallScreen"; // create this component to handle the call screen UI
 import { auth } from "./config/firebase.config";
 
 function App() {
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isOtpSent, setIsOtpSent] = useState(false);
+  const [result, setResult] = useState<ConfirmationResult | undefined>();
   const [mobileNumber, setMobileNumber] = useState("");
   const [otp, setOtp] = useState("");
-  const [result, setResult] = useState<ConfirmationResult | undefined>();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const navigate = useNavigate();
 
   const handleLogin = () => {
     if (!mobileNumber.trim() || mobileNumber.length < 10) return;
@@ -47,13 +52,11 @@ function App() {
 
     result
       ?.confirm(otp)
-      .then((response) => {
-        console.log(response);
-
+      .then(() => {
         const userId = auth.currentUser?.phoneNumber;
         console.log("Logged in user:", userId);
-        
         setIsLoggedIn(true);
+        navigate("/home");
       })
       .catch((err) => {
         console.log(err);
@@ -69,30 +72,39 @@ function App() {
     setIsOtpSent(false);
     setMobileNumber("");
     setOtp("");
+    navigate("/");
   };
 
-  // const startCall = (number: string, online: boolean) => {
-  //   // implement call initiation logic here; minimal stub logs for now
-  //   console.log("startCall", number, online);
-  // };
+  // Pass logout to Home and other props as needed
 
-  return isLoggedIn ? (
-    <Home mobileNumber={mobileNumber} logout={logout}/>
-  ) : isOtpSent ? (
-    <Otp
-      mobileNumber={mobileNumber}
-      otp={otp}
-      isLoading={isLoading}
-      setOtp={setOtp}
-      validateOtp={validateOtp}
-    />
-  ) : (
-    <Login
-      mobileNumber={mobileNumber}
-      isLoading={isLoading}
-      setMobileNumber={setMobileNumber}
-      handleLogin={handleLogin}
-    />
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          isLoggedIn ? (
+            <Home mobileNumber={mobileNumber} logout={logout} />
+          ) : isOtpSent ? (
+            <Otp
+              mobileNumber={mobileNumber}
+              otp={otp}
+              isLoading={isLoading}
+              setOtp={setOtp}
+              validateOtp={validateOtp}
+            />
+          ) : (
+            <Login
+              mobileNumber={mobileNumber}
+              isLoading={isLoading}
+              setMobileNumber={setMobileNumber}
+              handleLogin={handleLogin}
+            />
+          )
+        }
+      />
+      <Route path="/home" element={<Home mobileNumber={mobileNumber} logout={logout} />} />
+      <Route path="/call" element={<CallScreen />} />
+    </Routes>
   );
 }
 
