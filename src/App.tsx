@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ConfirmationResult,
   RecaptchaVerifier,
@@ -8,7 +8,6 @@ import {
 import Home from "./components/Home";
 import Login from "./components/Login";
 import Otp from "./components/Otp";
-import CallScreen from "./components/CallScreen"; // Import CallScreen
 import { auth } from "./config/firebase.config";
 
 function App() {
@@ -18,11 +17,6 @@ function App() {
   const [mobileNumber, setMobileNumber] = useState("");
   const [otp, setOtp] = useState("");
   const [result, setResult] = useState<ConfirmationResult | undefined>();
-
-  // Add these states for calling
-  const [isCalling, setIsCalling] = useState(false);
-  const [callNumber, setCallNumber] = useState("");
-  const [calleeOnline, setCalleeOnline] = useState(false);
 
   const handleLogin = () => {
     if (!mobileNumber.trim() || mobileNumber.length < 10) return;
@@ -53,10 +47,12 @@ function App() {
 
     result
       ?.confirm(otp)
-      .then(() => {
+      .then((response) => {
+        console.log(response);
+
         const userId = auth.currentUser?.phoneNumber;
         console.log("Logged in user:", userId);
-
+        
         setIsLoggedIn(true);
       })
       .catch((err) => {
@@ -73,42 +69,15 @@ function App() {
     setIsOtpSent(false);
     setMobileNumber("");
     setOtp("");
-    setIsCalling(false); // Reset call state on logout
   };
 
-  // Handler for starting a call, called from Home
-  const handleStartCall = (number, online) => {
-    console.log("handleStartCall triggered with:", number, online);
-    setCallNumber(number);
-    setCalleeOnline(online);
-    setIsCalling(true);
-  };
-
-  // Handler to end the call from CallScreen
-  const handleEndCall = () => {
-    setIsCalling(false);
-    setCallNumber("");
-    setCalleeOnline(false);
-  };
-
-  console.log("Rendering: isCalling =", isCalling);
-
-  if (isCalling) {
-    return (
-      <CallScreen
-        number={callNumber}
-        isOnline={calleeOnline}
-        onEndCall={handleEndCall}
-      />
-    );
-  }
+  // const startCall = (number: string, online: boolean) => {
+  //   // implement call initiation logic here; minimal stub logs for now
+  //   console.log("startCall", number, online);
+  // };
 
   return isLoggedIn ? (
-    <Home
-      mobileNumber={mobileNumber}
-      logout={logout}
-      startCall={handleStartCall}
-    />
+    <Home mobileNumber={mobileNumber} logout={logout}/>
   ) : isOtpSent ? (
     <Otp
       mobileNumber={mobileNumber}

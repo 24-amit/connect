@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { db } from "../config/firebase.config";
-import { ref, set, onValue, onDisconnect, push, remove, get } from "firebase/database";
+import { ref, set, onValue, onDisconnect, remove, get } from "firebase/database";
 import { auth } from "../config/firebase.config";
 import Peer from "simple-peer";
 
@@ -14,24 +14,24 @@ const keys = [
 
 const Home = ({
     mobileNumber,
-    logout,
-    startCall,
+    logout
 }: {
     mobileNumber: string;
     logout: () => void;
-    startCall: (number: string, online: boolean) => void;
 }) => {
     const [number, setNumber] = useState("");
     const [history, setHistory] = useState<string[]>([]);
     const [remoteUserOnline, setRemoteUserOnline] = useState(false);
-    // const [calling, setCalling] = useState(false);
-    // const [callAccepted, setCallAccepted] = useState(false);
+    const [inCall, setInCall] = useState(false);
+    const [callTimer, setCallTimer] = useState(0);
+    const [muted, setMuted] = useState(false);
 
-    // WebRTC refs
+    // --- WebRTC refs ---
     const peerRef = useRef<any>(null);
     const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
+    // --- Always get mic access early ---
     useEffect(() => {
         let mounted = true;
         navigator.mediaDevices.getUserMedia({ audio: true })
@@ -43,6 +43,7 @@ const Home = ({
         return () => { mounted = false; };
     }, []);
 
+    // --- User presence marking ---
     useEffect(() => {
         if (!mobileNumber) return;
         const myId = `+91${mobileNumber}`;
@@ -58,11 +59,12 @@ const Home = ({
         set(userRef, { online: true });
         onDisconnect(userRef).set({ online: false });
         return () => {
-            set(userRef, { online: false });
+            // Fire-and-forget to avoid returning a Promise from the cleanup function
+            void set(userRef, { online: false });
         };
     }, []);
 
-    // --- Callee: listen for incoming calls (offers) and answer them ---
+    // --- Listen for incoming offers as callee (optional, for your project flow) ---
     useEffect(() => {
         if (!localStream) return;
         if (!auth.currentUser || !auth.currentUser.phoneNumber) return;
@@ -88,6 +90,7 @@ const Home = ({
                     peer.on("stream", (remoteStream: MediaStream) => {
                         if (remoteAudioRef.current) {
                             remoteAudioRef.current.srcObject = remoteStream;
+                            // @ts-ignore
                             remoteAudioRef.current.play().catch(() => { });
                         } else {
                             const audioEl = document.createElement("audio");
@@ -95,7 +98,6 @@ const Home = ({
                             audioEl.autoplay = true;
                             document.body.appendChild(audioEl);
                         }
-                        // setCallAccepted(true);
                     });
                     peer.on("error", (err: any) => console.error("Peer error (callee):", err));
                 }
@@ -104,6 +106,7 @@ const Home = ({
         return () => unsub();
     }, [localStream]);
 
+    // --- Check if remote user (callee) is online ---
     const checkRemoteUser = (num: string) => {
         const userRef = ref(db, `users/+91${num}`);
         return onValue(userRef, (snapshot) => {
@@ -120,7 +123,7 @@ const Home = ({
         }
     };
 
-    // Handle call button - trigger parent App's startCall, not local navigate
+    // --- CALL BUTTON ---
     const handleCall = async () => {
         if (!number) return alert("Enter a number to call");
         const calleeId = `+91${number}`;
@@ -133,14 +136,49 @@ const Home = ({
             alert("User is offline — cannot call.");
             return;
         }
-        // Optionally prepare connection (audio permissions etc) here, but NO UI here!
-        startCall(number, true); // Pass number and online status up to App
-        setNumber(""); // Optional, prepares dialpad for next call
+        // This is the only place now where we "switch UI"
+        setInCall(true);
+        setCallTimer(0);
     };
 
+    // --- CALL TIMER ---
+    useEffect(() => {
+        if (!inCall) return;
+        const timer = setInterval(() => setCallTimer((t) => t + 1), 1000);
+        return () => clearInterval(timer);
+    }, [inCall]);
+
+    // --- END CALL ---
+    const handleEndCall = () => {
+        setInCall(false);
+        setNumber("");
+        setCallTimer(0);
+        setMuted(false);
+    };
 
     const backspace = () => setNumber((prev) => prev.slice(0, -1));
 
+    // --- In-Call UI ---
+    if (inCall) {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-blue-100 via-white to-blue-50">
+                <h2 className="text-2xl text-blue-800 font-bold mb-2">Calling {number}...</h2>
+                <p className="mb-4">{remoteUserOnline ? "🟢 Online" : "🔴 Offline"}</p>
+                <p className="text-xl font-mono">
+                    {String(Math.floor(callTimer / 60)).padStart(2, "0")}:
+                    {String(callTimer % 60).padStart(2, "0")}
+                </p>
+                <div className="flex gap-4 mt-8">
+                    <button onClick={handleEndCall} className="bg-red-500 w-16 h-16 rounded-full text-white text-2xl shadow-lg">❌</button>
+                    <button onClick={() => setMuted((m) => !m)} className="bg-yellow-400 w-16 h-16 rounded-full text-2xl shadow-lg">
+                        {muted ? "🔈" : "🔇"}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // --- Dial Pad UI ---
     return (
         <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-100 via-white to-blue-50">
             <div className="w-[420px] flex flex-col flex-1 mx-auto">
@@ -179,7 +217,6 @@ const Home = ({
                             className="flex-1 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600">
                             Clear
                         </motion.button>
-                        {/* Call parent startCall handler */}
                         <button onClick={handleCall}
                             className="call-button w-14 h-14 rounded-full bg-green-500 flex items-center justify-center shadow-lg hover:bg-green-600">
                             📞
@@ -189,11 +226,6 @@ const Home = ({
                             ⌫ Back
                         </motion.button>
                     </div>
-                    {/* {calling && (
-                        <div className="text-center mt-3 text-blue-800 font-semibold">
-                            {callAccepted ? "🔊 Call Connected" : "📞 Calling..."}
-                        </div>
-                    )} */}
                 </div>
             </div>
             <audio ref={remoteAudioRef} autoPlay />
