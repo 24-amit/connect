@@ -27,7 +27,6 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
     const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
     const navigate = useNavigate();
 
-    // ====== USER PRESENCE HANDLING ======
     useEffect(() => {
         const current = auth.currentUser;
         if (!current?.phoneNumber) return;
@@ -37,33 +36,30 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
         onDisconnect(userRef).set({ online: false });
         return () => {
             set(userRef, { online: false });
-            return undefined;
         };
     }, []);
 
-    // ====== MIC PERMISSION ======
     useEffect(() => {
         navigator.mediaDevices.getUserMedia({ audio: true })
-            .then((stream) => setLocalStream(stream))
-            .catch((err) => console.error("Mic access denied", err));
+            .then(stream => setLocalStream(stream))
+            .catch(err => console.error("Mic access denied", err));
     }, []);
 
-    // ====== CALLEE SIDE ======
     useEffect(() => {
         if (!localStream) return;
         const myId = `+91${mobileNumber}`;
         const callsRef = ref(db, "calls");
-        const unsub = onValue(callsRef, (snap) => {
-            const calls = snap.val();
+
+        const unsub = onValue(callsRef, snapshot => {
+            const calls = snapshot.val();
             if (!calls) return;
-            for (const [key, value] of Object.entries(calls)) {
-                const data: any = value;
-                if (data.to === myId && data.offer && !data.answer) {
-                    console.log(`📞 Incoming call from ${data.from}`);
-                    const accept = window.confirm(`Incoming call from ${data.from}. Accept?`);
+            for (const [key, data] of Object.entries(calls)) {
+                const callData: any = data;
+                if (callData.to === myId && callData.offer && !callData.answer) {
+                    const accept = window.confirm(`Incoming call from ${callData.from}. Accept?`);
                     if (!accept) {
                         remove(ref(db, `calls/${key}`));
-                        return;
+                        continue;
                     }
                     const peer = new Peer({
                         initiator: false,
@@ -72,47 +68,67 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
                         config: {
                             iceServers: [
                                 { urls: "stun:stun.l.google.com:19302" },
-                                { urls: "turn:relay1.expressturn.com:3478", username: "efgh", credential: "abcd1234" },
+                                { urls: "turn:relay1.expressturn.com:3478", username: "efgh", credential: "abcd1234" }
                             ],
                         },
                     });
                     peerRef.current = peer;
-                    peer.signal(data.offer);
+                    peer.signal(callData.offer);
 
                     peer.on("signal", (answer) => {
                         set(ref(db, `calls/${key}/answer`), answer);
                     });
 
                     peer.on("stream", (remoteStream) => {
-                        console.log("🎧 Playing caller audio");
                         if (remoteAudioRef.current) {
                             remoteAudioRef.current.srcObject = remoteStream;
                             remoteAudioRef.current.play().catch(() => { });
                         }
                     });
 
-                    peer.on("error", (e) => console.error("Callee Peer error:", e));
+                    peer.on("error", err => console.error("Peer error (callee):", err));
+                    setCallActive(true);
+                    setCallTimer(0);
+                    timerInterval.current = setInterval(() => setCallTimer(t => t + 1), 1000);
                 }
             }
         });
-        return () => unsub();
+
+        return () => {
+            unsub();
+        };
     }, [localStream]);
 
-    // ====== CALLER LOGIC ======
+    const checkRemoteUser = (num: string) => {
+        const userRef = ref(db, `users/+91${num}`);
+        return onValue(userRef, snapshot => {
+            const data = snapshot.val();
+            setRemoteUserOnline(Boolean(data?.online));
+        });
+    };
+
+    const handlePress = (digit: string) => {
+        if (number.length >= 10) return;
+        const updated = number + digit;
+        setNumber(updated);
+        if (updated.length === 10) {
+            checkRemoteUser(updated);
+        }
+    };
+
     const initiateCall = async () => {
         if (!number) return alert("Enter number to call");
         const calleeId = `+91${number}`;
-        const calleeSnap = await get(ref(db, `users/${calleeId}`));
-        if (!calleeSnap.val()?.online) {
+        const snapshot = await get(ref(db, `users/${calleeId}`));
+        if (!snapshot.val()?.online) {
             alert("❌ User offline");
             return;
         }
 
         setCallActive(true);
         setCallTimer(0);
-        timerInterval.current = setInterval(() => setCallTimer((t) => t + 1), 1000);
+        timerInterval.current = setInterval(() => setCallTimer(t => t + 1), 1000);
 
-        // Use shared callId between caller/callee
         const callId = `${mobileNumber}_to_${number}`;
         const callRef = ref(db, `calls/${callId}`);
 
@@ -123,40 +139,34 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
             config: {
                 iceServers: [
                     { urls: "stun:stun.l.google.com:19302" },
-                    { urls: "turn:relay1.expressturn.com:3478", username: "efgh", credential: "abcd1234" },
-                ],
-            },
+                    { urls: "turn:relay1.expressturn.com:3478", username: "efgh", credential: "abcd1234" }
+                ]
+            }
         });
         peerRef.current = peer;
 
         peer.on("signal", (offer) => {
             set(callRef, { from: `+91${mobileNumber}`, to: calleeId, offer });
-            console.log("📤 Offer sent to Firebase:", offer);
         });
 
-        // Listen for answer
         const answerRef = ref(db, `calls/${callId}/answer`);
-        onValue(answerRef, (snap) => {
+        onValue(answerRef, snap => {
             const data = snap.val();
             if (data?.sdp) {
-                console.log("📥 Answer received, connecting...");
                 peer.signal(data);
             }
         });
 
-        // Play remote audio
         peer.on("stream", (remoteStream) => {
-            console.log("🎧 Playing callee audio");
             if (remoteAudioRef.current) {
                 remoteAudioRef.current.srcObject = remoteStream;
                 remoteAudioRef.current.play().catch(() => { });
             }
         });
 
-        peer.on("error", (err) => console.error("Caller Peer error:", err));
+        peer.on("error", err => console.error("Caller Peer error:", err));
     };
 
-    // ====== END CALL ======
     const endCall = () => {
         setCallActive(false);
         clearInterval(timerInterval.current!);
@@ -164,10 +174,10 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
             peerRef.current.destroy();
             peerRef.current = null;
         }
-        console.log("📞 Call Ended");
     };
 
-    // ====== UI ======
+    const backspace = () => setNumber(prev => prev.slice(0, -1));
+
     return (
         <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-100 via-white to-blue-50">
             {!callActive ? (
@@ -179,7 +189,7 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
                             {keys.map((key) => (
                                 <motion.button
                                     key={key.num}
-                                    onClick={() => setNumber((n) => n + key.num)}
+                                    onClick={() => handlePress(key.num)}
                                     whileTap={{ scale: 0.9 }}
                                     className="w-14 h-14 bg-white border border-blue-200 hover:bg-blue-100 text-lg font-bold rounded-full shadow flex flex-col items-center justify-center"
                                 >
@@ -202,7 +212,7 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
                                 📞
                             </button>
                             <button
-                                onClick={() => setNumber((n) => n.slice(0, -1))}
+                                onClick={backspace}
                                 className="flex-1 py-2 rounded-lg bg-yellow-400 text-black font-semibold hover:bg-yellow-500"
                             >
                                 ⌫ Back
@@ -214,11 +224,14 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
                 <div className="flex flex-col items-center justify-center h-screen">
                     <h2 className="text-2xl font-bold text-blue-800">In Call with {number}</h2>
                     <p className="text-xl font-mono mt-2">
-                        {String(Math.floor(callTimer / 60)).padStart(2, "0")}:{String(callTimer % 60).padStart(2, "0")}
+                        {String(Math.floor(callTimer / 60)).padStart(2, "0")}:
+                        {String(callTimer % 60).padStart(2, "0")}
                     </p>
                     <div className="flex gap-4 mt-6">
-                        <button onClick={endCall} className="bg-red-500 w-16 h-16 rounded-full text-white text-2xl shadow-lg">❌</button>
-                        <button onClick={() => setMuted((m) => !m)} className="bg-yellow-400 w-16 h-16 rounded-full text-2xl shadow-lg">
+                        <button onClick={endCall} className="bg-red-500 w-16 h-16 rounded-full text-white text-2xl shadow-lg">
+                            ❌
+                        </button>
+                        <button onClick={() => setMuted(m => !m)} className="bg-yellow-400 w-16 h-16 rounded-full text-2xl shadow-lg">
                             {muted ? "🔈" : "🔇"}
                         </button>
                     </div>
