@@ -137,6 +137,26 @@ const Home = ({
             return;
         }
         // This is the only place now where we "switch UI"
+        // --- In-Call UI ---
+        if (inCall) {
+            return (
+                <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-blue-100 via-white to-blue-50">
+                    <h2 className="text-2xl text-blue-800 font-bold mb-2">Calling {number}...</h2>
+                    <p className="mb-4">{remoteUserOnline ? "🟢 Online" : "🔴 Offline"}</p>
+                    <p className="text-xl font-mono">
+                        {String(Math.floor(callTimer / 60)).padStart(2, "0")}:
+                        {String(callTimer % 60).padStart(2, "0")}
+                    </p>
+                    <div className="flex gap-4 mt-8">
+                        <button onClick={handleEndCall} className="bg-red-500 w-16 h-16 rounded-full text-white text-2xl shadow-lg">❌</button>
+                        <button onClick={() => setMuted((m) => !m)} className="bg-yellow-400 w-16 h-16 rounded-full text-2xl shadow-lg">
+                            {muted ? "🔈" : "🔇"}
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
         setInCall(true);
         setCallTimer(0);
     };
@@ -158,25 +178,25 @@ const Home = ({
 
     const backspace = () => setNumber((prev) => prev.slice(0, -1));
 
-    // --- In-Call UI ---
-    if (inCall) {
-        return (
-            <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-blue-100 via-white to-blue-50">
-                <h2 className="text-2xl text-blue-800 font-bold mb-2">Calling {number}...</h2>
-                <p className="mb-4">{remoteUserOnline ? "🟢 Online" : "🔴 Offline"}</p>
-                <p className="text-xl font-mono">
-                    {String(Math.floor(callTimer / 60)).padStart(2, "0")}:
-                    {String(callTimer % 60).padStart(2, "0")}
-                </p>
-                <div className="flex gap-4 mt-8">
-                    <button onClick={handleEndCall} className="bg-red-500 w-16 h-16 rounded-full text-white text-2xl shadow-lg">❌</button>
-                    <button onClick={() => setMuted((m) => !m)} className="bg-yellow-400 w-16 h-16 rounded-full text-2xl shadow-lg">
-                        {muted ? "🔈" : "🔇"}
-                    </button>
-                </div>
-            </div>
-        );
-    }
+    // // --- In-Call UI ---
+    // if (inCall) {
+    //     return (
+    //         <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-blue-100 via-white to-blue-50">
+    //             <h2 className="text-2xl text-blue-800 font-bold mb-2">Calling {number}...</h2>
+    //             <p className="mb-4">{remoteUserOnline ? "🟢 Online" : "🔴 Offline"}</p>
+    //             <p className="text-xl font-mono">
+    //                 {String(Math.floor(callTimer / 60)).padStart(2, "0")}:
+    //                 {String(callTimer % 60).padStart(2, "0")}
+    //             </p>
+    //             <div className="flex gap-4 mt-8">
+    //                 <button onClick={handleEndCall} className="bg-red-500 w-16 h-16 rounded-full text-white text-2xl shadow-lg">❌</button>
+    //                 <button onClick={() => setMuted((m) => !m)} className="bg-yellow-400 w-16 h-16 rounded-full text-2xl shadow-lg">
+    //                     {muted ? "🔈" : "🔇"}
+    //                 </button>
+    //             </div>
+    //         </div>
+    //     );
+    // }
 
     // --- Dial Pad UI ---
     return (
@@ -218,7 +238,7 @@ const Home = ({
                             Clear
                         </motion.button>
                         <button onClick={handleCall}
-                            className="call-button w-14 h-14 rounded-full bg-green-500 flex items-center justify-center shadow-lg hover:bg-green-600">
+                            className="w-14 h-14 rounded-full bg-green-500 flex items-center justify-center shadow-lg hover:bg-green-600">
                             📞
                         </button>
                         <motion.button onClick={backspace}
