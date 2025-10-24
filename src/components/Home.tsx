@@ -268,10 +268,10 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
                             Clear
                         </motion.button>
 
-                        <motion.button onClick={startCall}
-                            className="w-14 h-14 rounded-full bg-green-500 flex items-center justify-center shadow-lg hover:bg-green-600">
+                        <button onClick={startCall}
+                            className="call-button w-14 h-14 rounded-full bg-green-500 flex items-center justify-center shadow-lg hover:bg-green-600">
                             📞
-                        </motion.button>
+                        </button>
 
                         <motion.button onClick={backspace}
                             className="flex-1 py-2 rounded-lg bg-yellow-400 text-black font-semibold hover:bg-yellow-500">
