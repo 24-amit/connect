@@ -8,9 +8,8 @@ import {
 import Home from "./components/Home";
 import Login from "./components/Login";
 import Otp from "./components/Otp";
-import CallScreen from "./components/CallScreen";
+import CallScreen from "./components/CallScreen"; // Import CallScreen
 import { auth } from "./config/firebase.config";
-import { Routes, Route } from "react-router-dom";
 
 function App() {
   const [isLoading, setIsLoading] = useState(false);
@@ -19,9 +18,12 @@ function App() {
   const [mobileNumber, setMobileNumber] = useState("");
   const [otp, setOtp] = useState("");
   const [result, setResult] = useState<ConfirmationResult | undefined>();
-  const [isCalling, setIsCalling] = useState(false); // 👈 New state for CallScreen
 
-  // ------------------ LOGIN ------------------
+  // Add these states for calling
+  const [isCalling, setIsCalling] = useState(false);
+  const [callNumber, setCallNumber] = useState("");
+  const [calleeOnline, setCalleeOnline] = useState(false);
+
   const handleLogin = () => {
     if (!mobileNumber.trim() || mobileNumber.length < 10) return;
 
@@ -44,7 +46,6 @@ function App() {
       });
   };
 
-  // ------------------ OTP ------------------
   const validateOtp = () => {
     if (!otp.trim() || otp.length < 6) return;
 
@@ -55,6 +56,7 @@ function App() {
       .then(() => {
         const userId = auth.currentUser?.phoneNumber;
         console.log("Logged in user:", userId);
+
         setIsLoggedIn(true);
       })
       .catch((err) => {
@@ -66,50 +68,53 @@ function App() {
       });
   };
 
-  // ------------------ LOGOUT ------------------
   const logout = () => {
     setIsLoggedIn(false);
     setIsOtpSent(false);
     setMobileNumber("");
     setOtp("");
-    setIsCalling(false);
+    setIsCalling(false); // Reset call state on logout
   };
 
-  // ------------------ CALL FLOW ------------------
+  // Handler for starting a call, called from Home
+  const handleStartCall = (number, online) => {
+    setCallNumber(number);
+    setCalleeOnline(online);
+    setIsCalling(true);
+  };
+
+  // Handler to end the call from CallScreen
+  const handleEndCall = () => {
+    setIsCalling(false);
+    setCallNumber("");
+    setCalleeOnline(false);
+  };
+
   if (isCalling) {
-    const CallScreenAny = CallScreen as any;
     return (
-      <CallScreenAny
-        callerNumber={mobileNumber}
-        onEndCall={() => setIsCalling(false)}
+      <CallScreen
+        number={callNumber}
+        isOnline={calleeOnline}
+        onEndCall={handleEndCall}
       />
     );
   }
 
-  if (isLoggedIn) {
-    const HomeAny = Home as any;
-    return (
-      <HomeAny
-        mobileNumber={mobileNumber}
-        logout={logout}
-        startCall={() => setIsCalling(true)} // 👈 Pass trigger to open CallScreen
-      />
-    );
-  }
-
-  if (isOtpSent) {
-    return (
-      <Otp
-        mobileNumber={mobileNumber}
-        otp={otp}
-        isLoading={isLoading}
-        setOtp={setOtp}
-        validateOtp={validateOtp}
-      />
-    );
-  }
-
-  return (
+  return isLoggedIn ? (
+    <Home
+      mobileNumber={mobileNumber}
+      logout={logout}
+      startCall={handleStartCall}
+    />
+  ) : isOtpSent ? (
+    <Otp
+      mobileNumber={mobileNumber}
+      otp={otp}
+      isLoading={isLoading}
+      setOtp={setOtp}
+      validateOtp={validateOtp}
+    />
+  ) : (
     <Login
       mobileNumber={mobileNumber}
       isLoading={isLoading}

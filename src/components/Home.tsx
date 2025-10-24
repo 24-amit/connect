@@ -4,8 +4,6 @@ import { db } from "../config/firebase.config";
 import { ref, set, onValue, onDisconnect, push, remove, get } from "firebase/database";
 import { auth } from "../config/firebase.config";
 import Peer from "simple-peer";
-import { useNavigate } from "react-router-dom";
-import CallScreen from "./CallScreen";
 
 const keys = [
     { num: "1", letters: "" }, { num: "2", letters: "ABC" }, { num: "3", letters: "DEF" },
@@ -14,23 +12,26 @@ const keys = [
     { num: "*", letters: "" }, { num: "0", letters: "+" }, { num: "#", letters: "" },
 ];
 
-const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => void }) => {
+const Home = ({
+    mobileNumber,
+    logout,
+    startCall,
+}: {
+    mobileNumber: string;
+    logout: () => void;
+    startCall: (number: string, online: boolean) => void;
+}) => {
     const [number, setNumber] = useState("");
     const [history, setHistory] = useState<string[]>([]);
     const [remoteUserOnline, setRemoteUserOnline] = useState(false);
     const [calling, setCalling] = useState(false);
     const [callAccepted, setCallAccepted] = useState(false);
-    const navigate = useNavigate();
 
-    // keep Peer/RTCPeerConnection and audio element in refs
-    const peerRef = useRef<any>(null); // simple-peer instance
-    const pcRef = useRef<RTCPeerConnection | null>(null); // if you use RTCPeerConnection directly
+    // WebRTC refs
+    const peerRef = useRef<any>(null);
     const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
-
-    // localStream as state (do NOT use .current for it)
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
-    // Request mic permission once on mount
     useEffect(() => {
         let mounted = true;
         navigator.mediaDevices.getUserMedia({ audio: true })
@@ -44,27 +45,18 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
 
     useEffect(() => {
         if (!mobileNumber) return;
-
         const myId = `+91${mobileNumber}`;
         const userRef = ref(db, `users/${myId}`);
-
-        // Mark user as online
         set(userRef, { online: true });
-
-        // Automatically mark offline on disconnect
         onDisconnect(userRef).set({ online: false });
     }, [mobileNumber]);
 
-    // Mark logged-in user online in database (ensure user is authenticated)
     useEffect(() => {
         const current = auth.currentUser;
         if (!current || !current.phoneNumber) return;
-
         const userRef = ref(db, `users/${current.phoneNumber}`);
         set(userRef, { online: true });
         onDisconnect(userRef).set({ online: false });
-
-        // optional: cleanup when component unmounts
         return () => {
             set(userRef, { online: false });
         };
@@ -72,74 +64,52 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
 
     // --- Callee: listen for incoming calls (offers) and answer them ---
     useEffect(() => {
-        // only start listening after we have localStream and user signed in
         if (!localStream) return;
         if (!auth.currentUser || !auth.currentUser.phoneNumber) return;
-
         const myId = auth.currentUser.phoneNumber;
         const callsRef = ref(db, "calls");
-
         const unsub = onValue(callsRef, async (snapshot) => {
             const calls = snapshot.val();
             if (!calls) return;
-
-            // find calls where `to` matches this user and `offer` exists
             for (const [callId, data] of Object.entries(calls)) {
                 const callData: any = (data as any);
                 if (callData?.to === myId && callData?.offer && !callData?.answer) {
-                    // incoming call
                     const accept = window.confirm(`Incoming call from ${callData.from}. Accept?`);
                     if (!accept) {
-                        // decline -> remove call node so caller knows
                         remove(ref(db, `calls/${callId}`));
                         continue;
                     }
-
-                    // Accept: create simple-peer instance as receiver
                     const peer = new Peer({ initiator: false, trickle: false, stream: localStream });
                     peerRef.current = peer;
-
-                    // feed the caller's offer to peer
                     peer.signal(callData.offer);
-
-                    // when we produce an answer, write it back to the call node
                     peer.on("signal", (answerSignal: any) => {
-                        // store answer object at calls/{callId}/answer
                         set(ref(db, `calls/${callId}/answer`), answerSignal);
                     });
-
-                    // play remote audio when incoming stream arrives
                     peer.on("stream", (remoteStream: MediaStream) => {
                         if (remoteAudioRef.current) {
                             remoteAudioRef.current.srcObject = remoteStream;
-                            remoteAudioRef.current.play().catch(() => { /* autoplay may be blocked until user interacts */ });
+                            remoteAudioRef.current.play().catch(() => { });
                         } else {
                             const audioEl = document.createElement("audio");
                             audioEl.srcObject = remoteStream;
                             audioEl.autoplay = true;
-                            document.body.appendChild(audioEl); // fallback
+                            document.body.appendChild(audioEl);
                         }
                         setCallAccepted(true);
                     });
-
                     peer.on("error", (err: any) => console.error("Peer error (callee):", err));
                 }
             }
         });
-
         return () => unsub();
     }, [localStream]);
 
-    // Check if a remote user (entered number) is online
     const checkRemoteUser = (num: string) => {
         const userRef = ref(db, `users/+91${num}`);
-        // Use onValue once or subscribe
-        const unsub = onValue(userRef, (snapshot) => {
+        return onValue(userRef, (snapshot) => {
             const data = snapshot.val();
             setRemoteUserOnline(Boolean(data?.online));
         });
-        // optional: return unsubscribe so caller can stop listening
-        return unsub;
     };
 
     const handlePress = (digit: string) => {
@@ -150,78 +120,21 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
         }
     };
 
-    // Caller: start call (create offer and write to db)
-    const startCall = async () => {
+    // Handle call button - trigger parent App's startCall, not local navigate
+    const handleCall = async () => {
         if (!number) return alert("Enter a number to call");
-
         const calleeId = `+91${number}`;
         const snapshot = await get(ref(db, `users/${calleeId}`));
-
         if (!snapshot.val()?.online) {
             alert("User is offline ❌");
             return;
         }
-
         if (!remoteUserOnline) {
             alert("User is offline — cannot call.");
             return;
         }
-
-        if (!localStream) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                setLocalStream(stream);
-            } catch (err) {
-                console.error("Mic access denied:", err);
-                return;
-            }
-        }
-
-        const peer = new Peer({ initiator: true, trickle: false, stream: localStream });
-        peerRef.current = peer;
-
-        // 1️⃣ When an offer is ready, store it in Firebase
-        peer.on("signal", (offer) => {
-            const callId = Date.now().toString();
-            const callRef = ref(db, `calls/${callId}`);
-            set(callRef, {
-                from: mobileNumber,
-                to: `+91${number}`,
-                offer,
-            });
-
-            // 🔽 ADD THIS BELOW
-            const answerRef = ref(db, `calls/${callId}/answer`);
-            onValue(answerRef, (snapshot) => {
-                const data = snapshot.val();
-                if (data?.type === "answer" || data?.sdp) {
-                    console.log("📥 Answer received!");
-                    peer.signal(data); // feed answer into peer to complete connection
-                }
-            });
-        });
-
-        // 2️⃣ When remote stream arrives, play it
-        peer.on("stream", (remoteStream) => {
-            const audio = document.createElement("audio");
-            audio.srcObject = remoteStream;
-            audio.autoplay = true;
-            document.body.appendChild(audio);
-        });
-
-        peer.on("error", (err) => console.error("Peer error:", err));
-
-        navigate("/call", { state: { number, remoteUserOnline } });
-    };
-
-    const endCall = () => {
-        setCalling(false);
-        setCallAccepted(false);
-        if (peerRef.current) {
-            peerRef.current.destroy();
-            peerRef.current = null;
-        }
-        // Optionally remove call entries in DB if you keep track of the callId
+        // Optionally prepare connection (audio permissions etc) here
+        startCall(number, true); // Pass number and online status to App
     };
 
     const backspace = () => setNumber((prev) => prev.slice(0, -1));
@@ -243,11 +156,9 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
                         ))
                     )}
                 </div>
-
                 {/* Dial Pad */}
                 <div className="bg-white p-4 shadow-inner border-t border-blue-200 rounded-t-3xl">
                     <div className="text-center text-lg font-semibold mb-3">{number || "Enter Number"}</div>
-
                     <div className="grid grid-cols-3 gap-2 mb-3">
                         {keys.map((key) => (
                             <motion.button
@@ -261,24 +172,21 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
                             </motion.button>
                         ))}
                     </div>
-
                     <div className="flex justify-between gap-2">
                         <motion.button onClick={() => setNumber("")}
                             className="flex-1 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600">
                             Clear
                         </motion.button>
-
-                        <button onClick={startCall}
+                        {/* Call parent startCall handler */}
+                        <button onClick={handleCall}
                             className="call-button w-14 h-14 rounded-full bg-green-500 flex items-center justify-center shadow-lg hover:bg-green-600">
                             📞
                         </button>
-
                         <motion.button onClick={backspace}
                             className="flex-1 py-2 rounded-lg bg-yellow-400 text-black font-semibold hover:bg-yellow-500">
                             ⌫ Back
                         </motion.button>
                     </div>
-
                     {calling && (
                         <div className="text-center mt-3 text-blue-800 font-semibold">
                             {callAccepted ? "🔊 Call Connected" : "📞 Calling..."}
@@ -286,7 +194,6 @@ const Home = ({ mobileNumber, logout }: { mobileNumber: string; logout: () => vo
                     )}
                 </div>
             </div>
-
             <audio ref={remoteAudioRef} autoPlay />
         </div>
     );
