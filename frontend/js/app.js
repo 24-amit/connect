@@ -15,6 +15,7 @@ import { Store } from "./storage.js";
 import { setMyNumber } from "./state.js";
 import "./auth.js";
 import { startApp } from "./auth.js";
+import { checkForUpdates } from "./update.js";
 
 window.onload = () => {
     const savedUser = Store.getItem("userNumber");
@@ -58,3 +59,7 @@ if ("serviceWorker" in navigator) {
             });
     });
 }
+
+window.addEventListener("load", () => {
+    checkForUpdates();
+});

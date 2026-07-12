@@ -88,6 +88,67 @@ button {
     animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+#login {
+    position: relative;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+/* APK Install Button */
+.install-apk-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 10px 16px;
+
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+
+    color: #fff;
+
+    background: linear-gradient(135deg,
+            #667eea 0%,
+            #764ba2 100%);
+
+    border-radius: 999px;
+
+    box-shadow:
+        0 8px 24px rgba(102, 126, 234, 0.35),
+        0 2px 6px rgba(0, 0, 0, 0.08);
+
+    transition: all .25s ease;
+}
+
+.install-apk-btn:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        0 12px 28px rgba(102, 126, 234, 0.45),
+        0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.install-apk-btn:active {
+    transform: scale(.96);
+}
+
+.install-apk-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Login heading spacing */
+#login h2 {
+    margin-top: 40px;
+    margin-bottom: 24px;
+}
+
 @keyframes slideUp {
     from {
         opacity: 0;
